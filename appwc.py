@@ -3,7 +3,6 @@ from curl_cffi import requests as chatter_requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import puremagic
-import datetime
 import socket
 import io
 import zipfile
@@ -61,7 +60,6 @@ def analyze_file_info(file_bytes):
                         "Ext": "pptx"
                     }
         except Exception:
-            # Not a valid Zip or encrypted; fall through to generic check
             pass
 
     # --- STEP 2: Custom Generic ZIP String (If not an Office file) ---
@@ -105,7 +103,7 @@ if app_mode == "🌐 Web Scraper Analyzer":
     source_url = st.text_input("Enter Source URL:", value="https://www.tcs.com/investor-relations/financial-statements")
     
     if st.button("Analyze Website"):
-        with st.spinner("Analyzing Server with TLS Fingerprinting..."):
+        with st.spinner("Analyzing Server..."):
             try:
                 res = chatter_requests.get(source_url, impersonate="chrome120", timeout=20)
                 soup = BeautifulSoup(res.text, 'html.parser')
@@ -116,33 +114,32 @@ if app_mode == "🌐 Web Scraper Analyzer":
                 c3.metric("Links Found", len(soup.find_all('a')))
                 
                 st.divider()
-                st.subheader("Header Properties")
+                st.subheader("Technical Headers")
                 st.write(f"**Content-Type:** {res.headers.get('Content-Type', 'N/A')}")
                 st.write(f"**Last-Modified:** {res.headers.get('Last-Modified', 'Not provided')}")
                 
                 if res.status_code == 200:
-                    st.success("✅ Connection Successful. No WAF block detected.")
+                    st.success("✅ Connection Successful.")
             except Exception as e:
                 st.error(f"Error: {e}")
 
 # --- Module 2: File Inspector ---
 elif app_mode == "📄 Deep File Inspector":
     st.title("📄 Deep File Inspector")
-    st.info("Identify files by their internal binary signatures and technical properties.")
+    st.info("Identify files by their internal binary signatures and properties.")
     
     tab1, tab2 = st.tabs(["Analyze via Direct URL", "Upload Local File"])
     
     with tab1:
-        file_url = st.text_input("Direct File URL (e.g., path/to/data.xlsx):")
+        file_url = st.text_input("Direct File URL:")
         if st.button("Inspect Remote"):
             if file_url:
                 with st.spinner("Fetching file signature..."):
                     try:
-                        # Fetch first 8KB to ensure we get internal ZIP headers
                         resp = chatter_requests.get(file_url, impersonate="chrome120", headers={"Range": "bytes=0-8192"}, timeout=15)
                         info = analyze_file_info(resp.content)
                         
-                        st.subheader("Properties & Origin")
+                        st.subheader("File Properties")
                         col1, col2 = st.columns(2)
                         with col1:
                             st.write(f"**Origin (IP):** {get_server_ip(file_url)}")
@@ -165,20 +162,15 @@ elif app_mode == "📄 Deep File Inspector":
                 info = analyze_file_info(file_bytes)
                 
                 st.success(f"Analysis Complete: {uploaded_file.name}")
-                
                 st.divider()
+                
+                st.write("### 🛠 Technical Properties")
                 col_left, col_right = st.columns(2)
                 with col_left:
-                    st.write("### 🛠 Technical Properties")
                     st.write(f"**MIME Type:** `{info['MIME']}`")
                     st.write(f"**Verified Extension:** `{info['Ext']}`")
-                    st.write(f"**File Size:** {len(file_bytes) / 1024:.2f} KB")
-                
                 with col_right:
-                    st.write("### 📅 Session Metadata")
-                    st.write(f"**Analysis Timestamp:** {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                    st.write(f"**Origin Source:** User Upload via Browser")
-                    st.caption("Note: Original creation dates are stripped by browsers for security.")
+                    st.write(f"**File Size:** {len(file_bytes) / 1024:.2f} KB")
 
                 st.divider()
                 st.write(f"**System Identification String:**")
