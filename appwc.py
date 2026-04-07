@@ -59,7 +59,7 @@ app_mode = st.sidebar.radio("Navigate to:", [
 # --- MODULE 1: WEB SCRAPER ANALYZER ---
 if app_mode == "🌐 Web Scraper Analyzer":
     st.title("🌐 Web Scraper & Tech Profiler")
-    source_url = st.text_input("Enter Source URL:", value="https://www.tcs.com/investor-relations/financial-statements")
+    source_url = st.text_input("Enter Source URL:", value="")
     
     if st.button("Run Tech Analysis"):
         with st.spinner("Fingerprinting Website..."):
