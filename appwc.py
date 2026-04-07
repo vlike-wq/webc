@@ -10,8 +10,8 @@ st.set_page_config(page_title="Pro Scraper & File Intelligence", page_icon="🛡
 
 def analyze_file_info(file_bytes):
     """
-    Returns a list of dictionaries containing detailed file metadata.
-    Matches the user's expected format (File Type, MIME, Extension).
+    Returns a list of objects containing detailed file metadata.
+    Accesses attributes directly to avoid TypeErrors.
     """
     try:
         # Get all possible matches
@@ -22,14 +22,15 @@ def analyze_file_info(file_bytes):
             
         results = []
         for m in matches:
+            # We create a dictionary here to standardize the output
             results.append({
-                "File Type": m.name,
-                "MIME Type": m.mime,
-                "Suggested Extension": m.extension
+                "File Type": m.name,      # e.g., "Zip archive data, at least v2.0 to extract"
+                "MIME Type": m.mime,      # e.g., "application/zip"
+                "Extension": m.extension  # e.g., ".zip"
             })
         return results
     except Exception as e:
-        return f"Error: {str(e)}"
+        return None
 
 # --- Sidebar Navigation ---
 st.sidebar.title("Navigation")
@@ -44,24 +45,8 @@ if app_mode == "🌐 Web Scraper Analyzer":
             try:
                 res = chatter_requests.get(source_url, impersonate="chrome120", timeout=20)
                 soup = BeautifulSoup(res.text, 'html.parser')
-                
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Status", res.status_code)
-                c2.metric("Protocol", "HTTPS" if source_url.startswith("https") else "HTTP")
-                
-                # Logic to guess JS requirement
-                scripts = len(soup.find_all('script'))
-                links = len(soup.find_all('a'))
-                js_req = "High" if scripts > 15 and links < 20 else "Low"
-                c3.metric("JS Dependency", js_req)
-                
-                st.divider()
-                st.subheader("Technical Strategy")
-                if res.status_code == 200:
-                    st.success("✅ TLS Bypass Successful. Use `curl_cffi` for this source.")
-                else:
-                    st.error(f"❌ Access Denied (Status {res.status_code}).")
-                    
+                st.success(f"Successfully reached {source_url} (Status: {res.status_code})")
+                st.write(f"**Links Found:** {len(soup.find_all('a'))}")
             except Exception as e:
                 st.error(f"Connection Error: {e}")
 
@@ -77,24 +62,21 @@ elif app_mode == "📄 Deep File Inspector":
             if file_url:
                 with st.spinner("Downloading header..."):
                     try:
-                        # Fetch first 2KB only
                         resp = chatter_requests.get(file_url, impersonate="chrome120", headers={"Range": "bytes=0-2048"}, timeout=10)
                         data = analyze_file_info(resp.content)
                         if data:
-                            for item in data:
-                                st.write(f"**File Type:** {item['File Type']}")
-                                st.write(f"**MIME Type:** `{item['MIME Type']}`")
-                                st.write(f"**Suggested extension(s):** `{item['Suggested Extension']}`")
-                                st.markdown("---")
+                            top = data[0]
+                            st.write(f"**File Type:** {top['File Type']}")
+                            st.write(f"**MIME Type:** `{top['MIME Type']}`")
+                            st.write(f"**Suggested extension(s):** `{top['Extension']}`")
                         else:
-                            st.error("Could not identify file type from URL content.")
+                            st.warning("Could not identify binary signature. This might be a plain text file.")
                     except Exception as e:
                         st.error(f"Request failed: {e}")
 
     with tab2:
         uploaded_file = st.file_uploader("Upload a file for deep analysis", type=None)
         if uploaded_file:
-            # Use getvalue() to avoid stream exhaustion
             file_bytes = uploaded_file.getvalue()
             
             if st.button("Run Deep Scan"):
@@ -103,17 +85,25 @@ elif app_mode == "📄 Deep File Inspector":
                     
                     if results:
                         st.success(f"Identity confirmed for: {uploaded_file.name}")
-                        
-                        # Display the top match prominently
                         top = results[0]
-                        st.markdown(f"### **Primary Match**")
+                        
+                        # Displaying in your requested format
+                        st.markdown("### **Primary Match**")
                         st.write(f"**File Type:** {top['File Type']}")
                         st.write(f"**MIME Type:** `{top['MIME Type']}`")
-                        st.write(f"**Suggested extension(s):** `{top['Suggested Extension']}`")
+                        st.write(f"**Suggested extension(s):** `{top['Extension']}`")
                         
+                        # Optional: List secondary matches
                         if len(results) > 1:
-                            with st.expander("View secondary matches (nested types)"):
+                            with st.expander("View secondary matches"):
                                 st.table(pd.DataFrame(results[1:]))
                     else:
-                        st.warning("⚠️ **No Magic Numbers Detected.**")
-                        st.info("This file appears to be **Plain Text (ASCII/UTF-8)**. Text files (like .txt, .csv, .json) do not have binary headers and are identified by content rather than signatures.")
+                        # FALLBACK: If no binary signature is found, check if it's text
+                        try:
+                            text_sample = file_bytes[:1024].decode('utf-8')
+                            st.info("### **Primary Match**")
+                            st.write("**File Type:** ASCII text / Plain text")
+                            st.write("**MIME Type:** `text/plain`")
+                            st.write("**Suggested extension(s):** `.txt`, `.csv`, `.json`")
+                        except UnicodeDecodeError:
+                            st.error("Unknown binary format (No magic number match found).")
