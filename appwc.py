@@ -134,6 +134,8 @@ elif app_mode == "JSON Validator & Formatter":
 # --- MODULE 4: TIDY HTML LINTER ---
 elif app_mode == "🧹 Tidy HTML Validator & Linter":
     st.title("🧹 Tidy HTML Validator & Linter")
+    st.write("Deep scan for structural HTML issues with line-by-line reporting.")
+    
     val_url = st.text_input("URL to Lint:", value="https://example.com")
     
     if st.button("Start Deep Linting"):
@@ -143,6 +145,7 @@ elif app_mode == "🧹 Tidy HTML Validator & Linter":
             if conn_err:
                 st.error(f"Network Error: {conn_err}")
             else:
+                # Calculate Health Score (Each error reduces score)
                 score = max(0, 100 - len(errors))
                 c1, c2, c3 = st.columns(3)
                 c1.metric("Health Score", f"{score}%")
@@ -151,22 +154,22 @@ elif app_mode == "🧹 Tidy HTML Validator & Linter":
 
                 st.divider()
                 if not errors:
-                    st.success("✅ Clean HTML detected.")
+                    st.success("✅ Clean HTML detected. No structural errors found.")
                 else:
                     st.subheader("🚩 Structural Issue Report")
+                    
+                    # Error Summary Table
                     df = pd.DataFrame(errors)
                     st.dataframe(df[['line', 'col', 'msg']], use_container_width=True)
 
-                    for i, err in enumerate(errors[:10]):
+                    # Detailed expanders for the first 15 issues
+                    for i, err in enumerate(errors[:15]):
                         with st.expander(f"Line {err['line']}: {err['msg']}"):
-                            st.error(f"Error at Line {err['line']}, Col {err['col']}")
+                            st.error(f"Error at Line {err['line']}, Column {err['col']}")
+                            st.write("**Code Snippet:**")
                             st.code(err['content'], language="html")
-
-                st.subheader("🛠 Tidy Repair Preview")
-                if st.button("Fix & Beautify HTML"):
-                    repaired = BeautifulSoup(raw_html, 'html5lib').prettify()
-                    st.code(repaired[:5000], language="html")
+                            st.info("💡 Potential impact: This structural error may prevent scrapers from correctly identifying parent/child relationships in the DOM.")
 
 # Footer
 st.sidebar.divider()
-st.sidebar.caption(f"v4.0 | {datetime.date.today().year}")
+st.sidebar.caption(f"v4.1 | {datetime.date.today().year} | Developer Scraper Suite")
