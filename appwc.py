@@ -86,24 +86,37 @@ elif app_mode == "📄 Deep File Inspector":
                     if results:
                         st.success(f"Identity confirmed for: {uploaded_file.name}")
                         top = results[0]
-                        
-                        # Displaying in your requested format
                         st.markdown("### **Primary Match**")
                         st.write(f"**File Type:** {top['File Type']}")
                         st.write(f"**MIME Type:** `{top['MIME Type']}`")
                         st.write(f"**Suggested extension(s):** `{top['Extension']}`")
-                        
-                        # Optional: List secondary matches
-                        if len(results) > 1:
-                            with st.expander("View secondary matches"):
-                                st.table(pd.DataFrame(results[1:]))
                     else:
-                        # FALLBACK: If no binary signature is found, check if it's text
-                        try:
-                            text_sample = file_bytes[:1024].decode('utf-8')
-                            st.info("### **Primary Match**")
-                            st.write("**File Type:** ASCII text / Plain text")
-                            st.write("**MIME Type:** `text/plain`")
-                            st.write("**Suggested extension(s):** `.txt`, `.csv`, `.json`")
-                        except UnicodeDecodeError:
-                            st.error("Unknown binary format (No magic number match found).")
+                        # NEW: Enhanced Fallback Logic
+                        st.warning("⚠️ **No Magic Numbers Detected in Database.**")
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.info("### **Byte Analysis**")
+                            # Show the Hexadecimal signature (The first 16 bytes)
+                            hex_signature = " ".join([f"{b:02X}" for b in file_bytes[:16]])
+                            st.write(f"**First 16 Bytes (HEX):**")
+                            st.code(hex_signature)
+                        
+                        with col2:
+                            # Try to see if it's readable text
+                            try:
+                                text_sample = file_bytes[:512].decode('utf-8')
+                                st.write("**Content Inference:** ASCII / UTF-8 Text")
+                                st.write("**Suggested Extension:** `.txt`, `.csv`, `.json`, `.log`")
+                                with st.expander("View Text Preview"):
+                                    st.text(text_sample)
+                            except UnicodeDecodeError:
+                                st.write("**Content Inference:** Unknown Binary / Encrypted Data")
+                                st.write("**Suggested Action:** Check if the file is compressed or encrypted.")
+
+                        # Professional "File" command style output for unknown files
+                        st.divider()
+                        st.write("**Detailed Diagnostic:**")
+                        size_kb = len(file_bytes) / 1024
+                        st.text(f"Data; {size_kb:.2f} KB; No standard signature found at offset 0.")
